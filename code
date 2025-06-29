@@ -1,0 +1,166 @@
+pip install xlsxwriter
+pip install openpyxl
+pip install readability-lxml
+pip install trafilatura
+pip install newspaper3k
+
+import re
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+from readability import Document
+import trafilatura
+from newspaper import Article
+from time import sleep
+from tqdm import tqdm
+from datetime import datetime
+
+# Set input file path
+INPUT_PATH = r"C:\Users\KEARNEY\Desktop\url 크롤링\250520_라벨링 필요 기사 리스트.xlsx"
+
+# Load URL list from Excel
+df = pd.read_excel(INPUT_PATH, sheet_name='Sheet1').head(50)
+df['content'] = ''
+
+# Set HTTP session headers
+session = requests.Session()
+session.headers.update({
+    'User-Agent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                   'AppleWebKit/537.36 (KHTML, like Gecko) '
+                   'Chrome/124.0.0.0 Safari/537.36'),
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Referer': 'https://www.google.com/',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-User': '?1',
+    'Sec-Fetch-Dest': 'document'
+})
+
+# Define filter patterns
+filter_contains = [
+    re.compile(r'(?i)\bimage credit\b'),
+    re.compile(r'(?i)^advertisement\s*[:\-]?\s*')
+]
+
+filter_full = [
+    re.compile(r'^[A-Z][a-z]+(?: [A-Z][a-z]+)*\.?$'),
+]
+
+# Start crawling timer
+start_time = datetime.now()
+print(f"Start Time: {start_time:%Y-%m-%d %H:%M:%S}")
+
+# Crawl and extract article content
+for idx, url in tqdm(enumerate(df['url']), total=len(df), desc="Progress"):
+    text = ''
+    try:
+        # 1) Request HTML (retry up to 3 times)
+        for _ in range(3):
+            resp = session.get(url, timeout=15)
+            if resp.status_code == 410:
+                sleep(2)
+                continue
+            resp.raise_for_status()
+            break
+        resp.encoding = resp.apparent_encoding
+        html = resp.text
+
+        # 2) newspaper3k extraction
+        try:
+            article = Article(url, keep_article_html=True)
+            article.set_html(html)
+            article.parse()
+            clean_html = article.article_html
+            soup_np = BeautifulSoup(clean_html, 'html.parser')
+
+            # Remove tables and lists
+            for tag in soup_np(['table', 'ul', 'ol', 'li', 'td', 'th', 'tr']):
+                tag.decompose()
+
+            text = soup_np.get_text(separator=' ').strip()
+            text = re.sub(r'\s+', ' ', text).strip()
+
+        except Exception as e:
+            print(f"[{idx}] newspaper3k failed: {e}")
+            text = ''
+
+        # 3) Use trafilatura if extracted text is short
+        if len(text) < 200:
+            downloaded = trafilatura.fetch_url(url) or html
+            extracted = trafilatura.extract(
+                downloaded,
+                include_comments=False,
+                include_tables=False
+            ) or ''
+            if len(extracted) > len(text):
+                text = extracted.strip()
+
+        # 4) Fallback to readability + <p> tags
+        if len(text) < 200:
+            doc = Document(html)
+            summary = doc.summary()
+            soup_sum = BeautifulSoup(summary, 'html.parser')
+            paras = [
+                p.get_text(strip=True)
+                for p in soup_sum.find_all('p')
+                if len(p.get_text(strip=True)) >= 50
+            ]
+            text = '\n\n'.join(paras)
+
+        # 5) Final fallback: largest content block
+        if len(text) < 200:
+            soup_full = BeautifulSoup(html, 'html.parser')
+            for tag in soup_full(['script', 'style']):
+                tag.decompose()
+            candidates = soup_full.find_all(['article', 'main', 'div', 'section'])
+            best = max(candidates, key=lambda t: len(t.get_text()), default=soup_full.body)
+            paras = [
+                p.get_text(strip=True)
+                for p in best.find_all('p')
+                if len(p.get_text(strip=True)) >= 50
+            ]
+            text = '\n\n'.join(paras) or best.get_text(strip=True)
+
+        # Filter sentences
+        sentences = re.split(r'(?<=[\.?!])\s+', text)
+        filtered = []
+        for sent in sentences:
+            sent_strip = sent.strip()
+            if any(p.search(sent_strip) for p in filter_contains):
+                continue
+            if any(p.fullmatch(sent_strip) for p in filter_full):
+                continue
+            filtered.append(sent_strip)
+        text = ' '.join(filtered).strip()
+
+    except Exception as e:
+        text = f'Error: {e}'
+
+    # Save extracted result
+    df.at[idx, 'content'] = text
+
+# Show elapsed time
+end_time = datetime.now()
+print(f"End Time: {end_time:%Y-%m-%d %H:%M:%S}")
+print(f"Time Consumed: {end_time - start_time}")
+
+# Preview sample outputs
+df["content"][2]
+
+# ---
+df["content"][0]
+
+# ---
+df["content"][4]
+
+# ---
+
+# Export to Excel
+df.to_excel(
+    r"C:\Users\KEARNEY\Desktop\url 크롤링\결과.xlsx",
+    sheet_name='결과',
+    index=False,
+    engine='openpyxl'
+)
