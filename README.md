@@ -10,6 +10,7 @@ This project is a hands-on web crawling lab focused on extracting news article c
 Permalink_Crawling_Lab.ipynb: Main notebook for testing and comparing different crawling methods.
 Input: Excel file containing permalinks to news articles.
 Output: Extracted and cleaned article content stored in DataFrame columns.
+
 <br>
 
 🧰 Libraries Used
