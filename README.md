@@ -39,6 +39,7 @@ jupyter notebook Permalink_Crawling_Lab.ipynb
 Ensure your input Excel file (with permalinks) is properly loaded before running each method.
 
 <br>
+
 💡 Use Cases
 News article aggregation
 Content scraping for NLP or sentiment analysis
