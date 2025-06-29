@@ -31,6 +31,7 @@ BeautifulSoup	Manual tag parsing	Full control over HTML parsing
 <br>
 
 🏁 How to Run
+
 pip install -r requirements.txt
 Then open the notebook:
 
