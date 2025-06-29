@@ -11,6 +11,7 @@ Permalink_Crawling_Lab.ipynb: Main notebook for testing and comparing different 
 Input: Excel file containing permalinks to news articles.
 Output: Extracted and cleaned article content stored in DataFrame columns.
 <br>
+
 🧰 Libraries Used
 requests
 beautifulsoup4
@@ -20,6 +21,7 @@ newspaper3k
 tqdm
 pandas
 <br>
+
 🔍 Crawling Methods Compared
 Library	Features	Strengths
 newspaper3k	Article metadata, full text extraction	Easy-to-use, multilingual
@@ -27,6 +29,7 @@ trafilatura	Advanced content extraction for news articles	Fast, well-structured 
 readability-lxml	Simplified DOM parsing for main content	Lightweight, good for blog/news
 BeautifulSoup	Manual tag parsing	Full control over HTML parsing
 <br>
+
 🏁 How to Run
 pip install -r requirements.txt
 Then open the notebook:
@@ -40,10 +43,12 @@ News article aggregation
 Content scraping for NLP or sentiment analysis
 Comparative benchmarking of scraping tools
 <br>
+
 🧪 Sample Output
 Each method outputs a cleaned version of the main article text in a new DataFrame column, enabling comparison of completeness and quality.
 
 <br>
+
 📝 Author
 Jehyun Sung
 
